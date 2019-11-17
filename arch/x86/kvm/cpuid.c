@@ -24,6 +24,30 @@
 #include "trace.h"
 #include "pmu.h"
 
+//kv_code
+
+/*
+struct kv_mapper {
+	uint32_t count;
+	uint64_t timer;
+};
+
+extern struct kv_mapper kv_exit_mapper[62],kv_exit_generic_map;
+*/
+
+//struct kv_mapper {
+//	uint32_t count;
+//	uint64_t timer;
+//};
+
+//extern struct kv_mapper kv_exit_mapper[62],kv_exit_generic_map;
+
+//extern uint32_t kv_exit_generic_count=0,kv_exit_specific_count[62];
+//extern uint64_t kv_exit_generic_timer=0,kv_exit_specific_timer[62];
+
+uint32_t kv_exit_generic_count=0,kv_exit_specific_count[62];
+uint64_t kv_exit_generic_timer=0,kv_exit_specific_timer[62];
+
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
 	int feature_bit = 0;
@@ -1046,11 +1070,60 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 
 	eax = kvm_rax_read(vcpu);
 	ecx = kvm_rcx_read(vcpu);
-	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+
+	if( eax >= 0x4FFFFFFC && eax <= 0x4FFFFFFF ) { 
+		if(eax == 0x4FFFFFFF){
+			eax = kv_exit_generic_count;
+			ebx = ecx = edx = 0 ;
+		}else if(eax == 0x4FFFFFFE){
+			ebx = ( (kv_exit_generic_timer >> 32) );
+			ecx = ( (kv_exit_generic_timer & 0xFFFFFFFF ));
+			eax = edx = 0 ;
+		}else{
+            			
+            if(ecx < 0 || ecx > 61){
+				eax = ebx = ecx = 0 ;
+				edx = 0xFFFFFFFF;
+			}else{
+				if(eax == 0x4FFFFFFD){
+					eax = kv_exit_specific_count[(int)ecx];
+					ebx = ecx = edx = 0 ;
+				}else if(eax == 0x4FFFFFFC){
+					ebx = ( (kv_exit_specific_timer[(int)ecx] >> 32) );
+					ecx = ( (kv_exit_specific_timer[(int)ecx] & 0xFFFFFFFF ));
+					eax = edx = 0 ;
+				}
+			}
+            
+		}
+	}else{
+		kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+	}
+
 	kvm_rax_write(vcpu, eax);
 	kvm_rbx_write(vcpu, ebx);
 	kvm_rcx_write(vcpu, ecx);
 	kvm_rdx_write(vcpu, edx);
+
 	return kvm_skip_emulated_instruction(vcpu);
 }
+
+void kv_increment_exit_count(u32 exit_reason){
+    printk("nk>>>> cpuid.c kv_increment_exit_count exit_reason %d\n",exit_reason);
+	if(exit_reason<0 || exit_reason>59)
+		return;	
+	kv_exit_specific_count[(int)exit_reason]++;
+	kv_exit_generic_count++;
+}
+
+void kv_add_time_to_exit_reason(u32 exit_reason,uint64_t timer){
+    printk("nk>>>> cpuid.c kv_add_time_to_exit_reason exit_reason %d = %d\n",exit_reason,timer);
+	if(exit_reason<0 || exit_reason>59)
+		return;    	
+	kv_exit_specific_timer[(int)exit_reason] += timer;
+	kv_exit_generic_timer += timer;
+}
+
+EXPORT_SYMBOL_GPL(kv_increment_exit_count);
+EXPORT_SYMBOL_GPL(kv_add_time_to_exit_reason);
 EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);
