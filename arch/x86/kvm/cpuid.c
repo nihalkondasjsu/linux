@@ -14,6 +14,7 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <linux/sched/stat.h>
+#include <linux/semaphore.h>
 
 #include <asm/processor.h>
 #include <asm/user.h>
@@ -23,6 +24,8 @@
 #include "mmu.h"
 #include "trace.h"
 #include "pmu.h"
+
+#define DEFINE_SPINLOCK(x)    spinlock_t x = __SPIN_LOCK_UNLOCKED(x)
 
 //kv_code
 
@@ -47,6 +50,10 @@ extern struct kv_mapper kv_exit_mapper[62],kv_exit_generic_map;
 
 uint32_t kv_exit_generic_count=0,kv_exit_specific_count[62];
 uint64_t kv_exit_generic_timer=0,kv_exit_specific_timer[62];
+
+static spinlock_t my_lock;
+
+static DEFINE_SPINLOCK(my_lock); 
 
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
@@ -1109,19 +1116,23 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 }
 
 void kv_increment_exit_count(u32 exit_reason){
+    spin_lock(&my_lock);
     printk("nk>>>> cpuid.c kv_increment_exit_count exit_reason %d\n",exit_reason);
 	if(exit_reason<0 || exit_reason>59)
 		return;	
 	kv_exit_specific_count[(int)exit_reason]++;
 	kv_exit_generic_count++;
+    spin_unlock(&my_lock);
 }
 
 void kv_add_time_to_exit_reason(u32 exit_reason,uint64_t timer){
+    spin_lock(&my_lock);
     printk("nk>>>> cpuid.c kv_add_time_to_exit_reason exit_reason %d = %d\n",exit_reason,timer);
 	if(exit_reason<0 || exit_reason>59)
 		return;    	
 	kv_exit_specific_timer[(int)exit_reason] += timer;
 	kv_exit_generic_timer += timer;
+    spin_unlock(&my_lock);
 }
 
 EXPORT_SYMBOL_GPL(kv_increment_exit_count);
