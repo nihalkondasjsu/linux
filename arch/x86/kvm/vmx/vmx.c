@@ -5633,17 +5633,16 @@ struct kv_mapper kv_exit_mapper[62],kv_exit_generic_map;
 //EXPORT_SYMBOL(kv_exit_generic_count);
 //EXPORT_SYMBOL(kv_exit_generic_timer);
 
-uint64_t kv_rdtsc(void);
+//uint64_t kv_rdtsc(void);
 
-void kv_increment_exit_count(u32 exit_reason);
 void kv_add_time_to_exit_reason(u32 exit_reason,uint64_t timer);
-
+/*
 uint64_t kv_rdtsc(){
     unsigned int lo,hi;
     __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
     return ((uint64_t)hi << 32) | lo;
 }
-
+*/
 //kv_code
 
 
@@ -5898,10 +5897,8 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	uint64_t kv_timer;
 	
 	printk("nk>>>> vmx.c vmx_handle_exit exit_reason %d\n",exit_reason);
-	
-    kv_increment_exit_count(exit_reason);
 
-	kv_timer = kv_rdtsc();
+	kv_timer = rdtsc();
 	
 	trace_kvm_exit(exit_reason, vcpu, KVM_ISA_VMX);
 	
@@ -5919,7 +5916,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	if (vmx->emulation_required){
 		result = handle_invalid_guest_state(vcpu);
 
-		kv_timer = kv_rdtsc() - kv_timer ;
+		kv_timer = rdtsc() - kv_timer ;
 		kv_add_time_to_exit_reason(exit_reason,kv_timer);		
 		
 		return result;
@@ -5927,7 +5924,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	if (is_guest_mode(vcpu) && nested_vmx_exit_reflected(vcpu, exit_reason)){
 		result = nested_vmx_reflect_vmexit(vcpu, exit_reason);
 
-		kv_timer = kv_rdtsc() - kv_timer ;
+		kv_timer = rdtsc() - kv_timer ;
 		kv_add_time_to_exit_reason(exit_reason,kv_timer);		
 		
 		return result;
@@ -5938,7 +5935,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		vcpu->run->fail_entry.hardware_entry_failure_reason
 			= exit_reason;
 
-		kv_timer = kv_rdtsc() - kv_timer ;
+		kv_timer = rdtsc() - kv_timer ;
 		kv_add_time_to_exit_reason(exit_reason,kv_timer);		
 		
 		return 0;
@@ -5950,7 +5947,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		vcpu->run->fail_entry.hardware_entry_failure_reason
 			= vmcs_read32(VM_INSTRUCTION_ERROR);
 
-		kv_timer = kv_rdtsc() - kv_timer ;
+		kv_timer = rdtsc() - kv_timer ;
 		kv_add_time_to_exit_reason(exit_reason,kv_timer);		
 		
 		return 0;
@@ -5980,7 +5977,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 				vmcs_read64(GUEST_PHYSICAL_ADDRESS);
 		}
 
-		kv_timer = kv_rdtsc() - kv_timer ;
+		kv_timer = rdtsc() - kv_timer ;
 		kv_add_time_to_exit_reason(exit_reason,kv_timer);		
 		
 		return 0;
@@ -6009,7 +6006,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	    && kvm_vmx_exit_handlers[exit_reason]){
 		result = kvm_vmx_exit_handlers[exit_reason](vcpu);		
 		
-		kv_timer = kv_rdtsc() - kv_timer ;
+		kv_timer = rdtsc() - kv_timer ;
 		kv_add_time_to_exit_reason(exit_reason,kv_timer);		
 		
 		return result;
@@ -6023,7 +6020,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 		vcpu->run->internal.ndata = 1;
 		vcpu->run->internal.data[0] = exit_reason;
 
-		kv_timer = kv_rdtsc() - kv_timer ;
+		kv_timer = rdtsc() - kv_timer ;
 		kv_add_time_to_exit_reason(exit_reason,kv_timer);
 
 		return 0;

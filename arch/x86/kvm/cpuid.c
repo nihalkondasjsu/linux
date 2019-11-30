@@ -27,29 +27,8 @@
 
 #define DEFINE_SPINLOCK(x)    spinlock_t x = __SPIN_LOCK_UNLOCKED(x)
 
-//kv_code
-
-/*
-struct kv_mapper {
-	uint32_t count;
-	uint64_t timer;
-};
-
-extern struct kv_mapper kv_exit_mapper[62],kv_exit_generic_map;
-*/
-
-//struct kv_mapper {
-//	uint32_t count;
-//	uint64_t timer;
-//};
-
-//extern struct kv_mapper kv_exit_mapper[62],kv_exit_generic_map;
-
-//extern uint32_t kv_exit_generic_count=0,kv_exit_specific_count[62];
-//extern uint64_t kv_exit_generic_timer=0,kv_exit_specific_timer[62];
-
-static uint32_t kv_exit_generic_count=0,kv_exit_specific_count[62];
-static uint64_t kv_exit_generic_timer=0,kv_exit_specific_timer[62];
+static atomic_t kv_exit_generic_count,kv_exit_specific_count[62];
+static atomic64_t kv_exit_generic_timer,kv_exit_specific_timer[62];
 
 static spinlock_t my_lock;
 
@@ -1081,10 +1060,10 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
     
 	if( eax >= 0x4FFFFFFC && eax <= 0x4FFFFFFF ) { 
 		if(eax == 0x4FFFFFFF){
-			eax = kv_exit_generic_count;
+			eax = atomic_read(&kv_exit_generic_count);
 			ebx = ecx = edx = 0 ;
 		}else if(eax == 0x4FFFFFFE){
-            temp = kv_exit_generic_timer;
+            temp = atomic64_read(&kv_exit_generic_timer);
 			ebx = ( (temp >> 32) );
 			ecx = ( (temp & 0xFFFFFFFF ));
 			eax = edx = 0 ;
@@ -1095,10 +1074,10 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 				edx = 0xFFFFFFFF;
 			}else{
 				if(eax == 0x4FFFFFFD){
-					eax = kv_exit_specific_count[(int)ecx];
+					eax = atomic_read(&kv_exit_specific_count[(int)ecx]);
 					ebx = ecx = edx = 0 ;
 				}else if(eax == 0x4FFFFFFC){
-                    temp = kv_exit_specific_timer[(int)ecx];
+                    temp = atomic64_read(&kv_exit_specific_timer[(int)ecx]);
 					ebx = ( (temp >> 32) );
 					ecx = ( (temp & 0xFFFFFFFF ));
 					eax = edx = 0 ;
@@ -1118,26 +1097,20 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	return kvm_skip_emulated_instruction(vcpu);
 }
 
-void kv_increment_exit_count(u32 exit_reason){
-    spin_lock(&my_lock);
-    printk("nk>>>> cpuid.c kv_increment_exit_count exit_reason %d\n",exit_reason);
-	if(exit_reason<0 || exit_reason>59)
-		return;	
-	kv_exit_specific_count[(int)exit_reason]++;
-	kv_exit_generic_count++;
-    spin_unlock(&my_lock);
-}
-
 void kv_add_time_to_exit_reason(u32 exit_reason,uint64_t timer){
-    spin_lock(&my_lock);
     printk("nk>>>> cpuid.c kv_add_time_to_exit_reason exit_reason %d = %lld\n",exit_reason,timer);
 	if(exit_reason<0 || exit_reason>59)
 		return;    	
-	kv_exit_specific_timer[(int)exit_reason] += timer;
-	kv_exit_generic_timer += timer;
+	spin_lock(&my_lock);
+    
+    atomic_inc(&kv_exit_generic_count);
+    atomic_inc(&kv_exit_specific_count[(int)exit_reason]);
+
+    atomic64_add(timer,&kv_exit_generic_timer);
+    atomic64_add(timer,&kv_exit_specific_timer[(int)exit_reason]);
+
     spin_unlock(&my_lock);
 }
 
-EXPORT_SYMBOL_GPL(kv_increment_exit_count);
 EXPORT_SYMBOL_GPL(kv_add_time_to_exit_reason);
 EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);
