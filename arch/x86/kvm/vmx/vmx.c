@@ -5618,31 +5618,8 @@ static const int kvm_vmx_max_exit_handlers =
 
 //kv_code
 
-/*
-extern struct kv_mapper{
-	uint32_t count;
-	uint64_t timer;
-};
-
-struct kv_mapper kv_exit_mapper[62],kv_exit_generic_map;
-*/
-
-
-//EXPORT_SYMBOL(kv_exit_specific_count);
-//EXPORT_SYMBOL(kv_exit_specific_timer);
-//EXPORT_SYMBOL(kv_exit_generic_count);
-//EXPORT_SYMBOL(kv_exit_generic_timer);
-
-//uint64_t kv_rdtsc(void);
-
 void kv_add_time_to_exit_reason(u32 exit_reason,uint64_t timer);
-/*
-uint64_t kv_rdtsc(){
-    unsigned int lo,hi;
-    __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
-    return ((uint64_t)hi << 32) | lo;
-}
-*/
+
 //kv_code
 
 
@@ -5896,7 +5873,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
     int result = 0 ;
 	uint64_t kv_timer;
 	
-	printk("nk>>>> vmx.c vmx_handle_exit exit_reason %d\n",exit_reason);
+	//printk("nk>>>> vmx.c vmx_handle_exit exit_reason %d\n",exit_reason);
 
 	kv_timer = rdtsc();
 	

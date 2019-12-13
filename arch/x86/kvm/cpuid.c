@@ -1061,9 +1061,11 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	if( eax >= 0x4FFFFFFC && eax <= 0x4FFFFFFF ) { 
 		if(eax == 0x4FFFFFFF){
 			eax = atomic_read(&kv_exit_generic_count);
+            printk("kv>>>> EXIT_REASON : ALL , Counter : %u\n",eax);
 			ebx = ecx = edx = 0 ;
 		}else if(eax == 0x4FFFFFFE){
             temp = atomic64_read(&kv_exit_generic_timer);
+            printk("kv>>>> EXIT_REASON : ALL , Timer : %lld\n",temp);
 			ebx = ( (temp >> 32) );
 			ecx = ( (temp & 0xFFFFFFFF ));
 			eax = edx = 0 ;
@@ -1075,9 +1077,11 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 			}else{
 				if(eax == 0x4FFFFFFD){
 					eax = atomic_read(&kv_exit_specific_count[(int)ecx]);
+                    printk("kv>>>> EXIT_REASON : %d , Counter : %u\n",(int)ecx,eax);
 					ebx = ecx = edx = 0 ;
 				}else if(eax == 0x4FFFFFFC){
                     temp = atomic64_read(&kv_exit_specific_timer[(int)ecx]);
+                    printk("kv>>>> EXIT_REASON : %d , Timer : %lld\n",(int)ecx,temp);
 					ebx = ( (temp >> 32) );
 					ecx = ( (temp & 0xFFFFFFFF ));
 					eax = edx = 0 ;
@@ -1098,7 +1102,6 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 }
 
 void kv_add_time_to_exit_reason(u32 exit_reason,uint64_t timer){
-    printk("nk>>>> cpuid.c kv_add_time_to_exit_reason exit_reason %d = %lld\n",exit_reason,timer);
 	if(exit_reason<0 || exit_reason>59)
 		return;    	
 	spin_lock(&my_lock);
